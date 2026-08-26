@@ -3,6 +3,17 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { findUnsupportedChar } from "@/lib/validation";
+
+const UNSUPPORTED_CHAR_MESSAGE =
+  "Password contains an unsupported character (like a smart quote or bullet, often inserted by a password manager). Please use only standard letters, numbers, and symbols.";
+
+function sanitizeAuthErrorMessage(message: string): string {
+  if (/ByteString|character at index/i.test(message)) {
+    return UNSUPPORTED_CHAR_MESSAGE;
+  }
+  return message;
+}
 
 export type AuthState = { error?: string; success?: boolean } | undefined;
 
@@ -19,12 +30,15 @@ export async function signup(
   if (password.length < 8) {
     return { error: "Password must be at least 8 characters." };
   }
+  if (findUnsupportedChar(password)) {
+    return { error: UNSUPPORTED_CHAR_MESSAGE };
+  }
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({ email, password });
 
   if (error) {
-    return { error: error.message };
+    return { error: sanitizeAuthErrorMessage(error.message) };
   }
 
   if (!data.session) {
@@ -83,7 +97,7 @@ export async function requestPasswordReset(
   });
 
   if (error) {
-    return { error: error.message };
+    return { error: sanitizeAuthErrorMessage(error.message) };
   }
 
   return { success: true };
@@ -98,12 +112,15 @@ export async function updatePassword(
   if (password.length < 8) {
     return { error: "Password must be at least 8 characters." };
   }
+  if (findUnsupportedChar(password)) {
+    return { error: UNSUPPORTED_CHAR_MESSAGE };
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.updateUser({ password });
 
   if (error) {
-    return { error: error.message };
+    return { error: sanitizeAuthErrorMessage(error.message) };
   }
 
   redirect("/boards");
