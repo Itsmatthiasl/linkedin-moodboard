@@ -5,12 +5,18 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { findUnsupportedChar } from "@/lib/validation";
 
-const UNSUPPORTED_CHAR_MESSAGE =
+const GENERIC_UNSUPPORTED_CHAR_MESSAGE =
   "Password contains an unsupported character (like a smart quote or bullet, often inserted by a password manager). Please use only standard letters, numbers, and symbols.";
+
+function describeUnsupportedChar(password: string): string | null {
+  const found = findUnsupportedChar(password);
+  if (!found) return null;
+  return `Password contains "${found.char}" (character code ${found.codePoint}) at position ${found.index + 1}, which isn't supported — this is often inserted silently by a password manager's autofill. Try typing the password manually instead of using autofill, or remove that character.`;
+}
 
 function sanitizeAuthErrorMessage(message: string): string {
   if (/ByteString|character at index/i.test(message)) {
-    return UNSUPPORTED_CHAR_MESSAGE;
+    return GENERIC_UNSUPPORTED_CHAR_MESSAGE;
   }
   return message;
 }
@@ -30,8 +36,9 @@ export async function signup(
   if (password.length < 8) {
     return { error: "Password must be at least 8 characters." };
   }
-  if (findUnsupportedChar(password)) {
-    return { error: UNSUPPORTED_CHAR_MESSAGE };
+  const unsupportedCharMessage = describeUnsupportedChar(password);
+  if (unsupportedCharMessage) {
+    return { error: unsupportedCharMessage };
   }
 
   const supabase = await createClient();
@@ -58,6 +65,10 @@ export async function login(
   if (!email || !password) {
     return { error: "Email and password are required." };
   }
+  const unsupportedCharMessage = describeUnsupportedChar(password);
+  if (unsupportedCharMessage) {
+    return { error: unsupportedCharMessage };
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({
@@ -66,7 +77,7 @@ export async function login(
   });
 
   if (error) {
-    return { error: "Invalid email or password." };
+    return { error: sanitizeAuthErrorMessage(error.message) };
   }
 
   redirect("/boards");
@@ -112,8 +123,9 @@ export async function updatePassword(
   if (password.length < 8) {
     return { error: "Password must be at least 8 characters." };
   }
-  if (findUnsupportedChar(password)) {
-    return { error: UNSUPPORTED_CHAR_MESSAGE };
+  const unsupportedCharMessage = describeUnsupportedChar(password);
+  if (unsupportedCharMessage) {
+    return { error: unsupportedCharMessage };
   }
 
   const supabase = await createClient();
