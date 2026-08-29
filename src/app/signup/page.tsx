@@ -1,17 +1,55 @@
 "use client";
 
-import { useActionState } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { signup } from "@/app/actions/auth";
+import { createClient } from "@/lib/supabase/client";
 import { AuthCard } from "@/components/AuthCard";
-import { SubmitButton } from "@/components/SubmitButton";
 
 export default function SignupPage() {
-  const [state, action] = useActionState(signup, undefined);
+  const router = useRouter();
+  const [error, setError] = useState<string>();
+  const [pending, setPending] = useState(false);
+  const [checkEmail, setCheckEmail] = useState(false);
 
-  if (state?.success) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(undefined);
+
+    const formData = new FormData(e.currentTarget);
+    const email = String(formData.get("email") ?? "").trim();
+    const password = String(formData.get("password") ?? "");
+
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+
+    setPending(true);
+    const supabase = createClient();
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    setPending(false);
+
+    if (error) {
+      setError(error.message);
+      return;
+    }
+
+    if (!data.session) {
+      setCheckEmail(true);
+      return;
+    }
+
+    router.push("/boards");
+    router.refresh();
+  }
+
+  if (checkEmail) {
     return (
-      <AuthCard title="Check your email" subtitle="Confirm your address to finish signing up.">
+      <AuthCard
+        title="Check your email"
+        subtitle="Confirm your address to finish signing up."
+      >
         <p className="text-sm text-neutral-600 dark:text-neutral-300">
           We sent a confirmation link to your inbox. Click it, then come back
           and log in.
@@ -27,7 +65,7 @@ export default function SignupPage() {
 
   return (
     <AuthCard title="Create your account" subtitle="Just an email and password.">
-      <form action={action} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <label htmlFor="email" className="text-sm font-medium">
             Email
@@ -56,12 +94,16 @@ export default function SignupPage() {
           />
           <p className="text-xs text-neutral-500">At least 8 characters.</p>
         </div>
-        {state?.error && (
-          <p className="text-sm text-red-600 dark:text-red-400">
-            {state.error}
-          </p>
+        {error && (
+          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
         )}
-        <SubmitButton pendingText="Creating account…">Sign up</SubmitButton>
+        <button
+          type="submit"
+          disabled={pending}
+          className="inline-flex items-center justify-center rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-60 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+        >
+          {pending ? "Creating account…" : "Sign up"}
+        </button>
       </form>
       <p className="mt-4 text-center text-sm text-neutral-500">
         Already have an account?{" "}
