@@ -14,6 +14,17 @@ function sanitizeAuthErrorMessage(message: string): string {
   return message;
 }
 
+function logAuthFailure(source: string, err: unknown) {
+  const error = err as { message?: string; stack?: string; name?: string; status?: number; code?: string };
+  console.error(`[auth:${source}]`, {
+    name: error?.name,
+    message: error?.message,
+    status: error?.status,
+    code: error?.code,
+    stack: error?.stack,
+  });
+}
+
 export type AuthState = { error?: string; success?: boolean } | undefined;
 
 export async function signup(
@@ -36,6 +47,7 @@ export async function signup(
     const { data, error } = await supabase.auth.signUp({ email, password });
 
     if (error) {
+      logAuthFailure("signup", error);
       return { error: sanitizeAuthErrorMessage(error.message) };
     }
 
@@ -43,6 +55,7 @@ export async function signup(
       return { success: true };
     }
   } catch (err) {
+    logAuthFailure("signup", err);
     return { error: sanitizeAuthErrorMessage((err as Error).message) };
   }
 
@@ -69,9 +82,11 @@ export async function login(
     });
 
     if (error) {
+      logAuthFailure("login", error);
       return { error: sanitizeAuthErrorMessage(error.message) };
     }
   } catch (err) {
+    logAuthFailure("login", err);
     return { error: sanitizeAuthErrorMessage((err as Error).message) };
   }
 
@@ -104,9 +119,11 @@ export async function requestPasswordReset(
     });
 
     if (error) {
+      logAuthFailure("requestPasswordReset", error);
       return { error: sanitizeAuthErrorMessage(error.message) };
     }
   } catch (err) {
+    logAuthFailure("requestPasswordReset", err);
     return { error: sanitizeAuthErrorMessage((err as Error).message) };
   }
 
@@ -129,9 +146,11 @@ export async function updatePassword(
     const { error } = await supabase.auth.updateUser({ password });
 
     if (error) {
+      logAuthFailure("updatePassword", error);
       return { error: sanitizeAuthErrorMessage(error.message) };
     }
   } catch (err) {
+    logAuthFailure("updatePassword", err);
     return { error: sanitizeAuthErrorMessage((err as Error).message) };
   }
 
