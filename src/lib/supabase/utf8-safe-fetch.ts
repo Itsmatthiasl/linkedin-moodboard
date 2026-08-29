@@ -8,6 +8,12 @@
  * the string case.
  */
 export const utf8SafeFetch: typeof fetch = (input, init) => {
+  const bodyType = init?.body == null ? "none" : typeof init.body;
+  console.error("[utf8SafeFetch]", {
+    url: String(input),
+    bodyType,
+    bodyIsBuffer: init?.body instanceof Uint8Array,
+  });
   if (init?.body && typeof init.body === "string") {
     return fetch(input, { ...init, body: Buffer.from(init.body, "utf-8") });
   }
