@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { NEW_BOARD_VALUE } from "@/lib/constants";
+import { extractLinkedInEmbedUrl } from "@/lib/linkedin";
 
 export type ActionState = { error?: string } | undefined;
 
@@ -43,16 +44,17 @@ export async function addPost(
   formData: FormData
 ): Promise<AddPostState> {
   const linkedinUrl = String(formData.get("linkedin_url") ?? "").trim();
-  const authorName = String(formData.get("author_name") ?? "").trim();
-  const postText = String(formData.get("post_text") ?? "").trim();
-  const engagementSummary = String(
-    formData.get("engagement_summary") ?? ""
-  ).trim();
   const boardSelection = String(formData.get("board_id") ?? "");
   const newBoardName = String(formData.get("new_board_name") ?? "").trim();
 
-  if (!linkedinUrl || !authorName || !postText) {
-    return { error: "URL, author name, and post text are required." };
+  if (!linkedinUrl) {
+    return { error: "Paste a LinkedIn post URL." };
+  }
+  if (!extractLinkedInEmbedUrl(linkedinUrl)) {
+    return {
+      error:
+        "Couldn't recognize that as a LinkedIn post URL. Open the post on LinkedIn, use Send > Copy link, and paste the full link here.",
+    };
   }
   if (boardSelection === NEW_BOARD_VALUE && !newBoardName) {
     return { error: "Enter a name for the new board." };
@@ -82,9 +84,6 @@ export async function addPost(
   const { error: postError } = await supabase.from("posts").insert({
     board_id: boardId,
     linkedin_url: linkedinUrl,
-    author_name: authorName,
-    post_text: postText,
-    engagement_summary: engagementSummary || null,
   });
 
   if (postError) {

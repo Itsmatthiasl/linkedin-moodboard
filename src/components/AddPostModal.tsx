@@ -51,28 +51,14 @@ export function AddPostModal({
                 name="linkedin_url"
                 type="url"
                 required
+                autoFocus
                 placeholder="https://www.linkedin.com/posts/..."
                 className={inputClass}
               />
-            </Field>
-            <Field label="Author name">
-              <input name="author_name" required className={inputClass} />
-            </Field>
-            <Field label="Post text">
-              <textarea
-                name="post_text"
-                required
-                rows={5}
-                placeholder="Paste the full post text"
-                className={`${inputClass} resize-none`}
-              />
-            </Field>
-            <Field label="Engagement (optional)">
-              <input
-                name="engagement_summary"
-                placeholder="142 likes · 12 comments"
-                className={inputClass}
-              />
+              <p className="text-xs font-normal text-neutral-500">
+                We'll pull in the post automatically — photo, name, text, and
+                engagement.
+              </p>
             </Field>
             <Field label="Board">
               <select

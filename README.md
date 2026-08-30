@@ -21,5 +21,5 @@ The database schema (boards, posts, RLS policies) lives in `supabase/migrations/
 ## How it works
 
 - Sign up with email + password.
-- Create a board, then add a post by pasting its LinkedIn URL and manually typing the author, post text, and engagement line (LinkedIn has no public API for this — see the PRD for why manual entry was chosen for v1).
-- Posts show in a 3-column masonry grid per board, with infinite scroll. Clicking a card opens the original post on LinkedIn in a new tab.
+- Create a board, then add a post by pasting its LinkedIn URL. The post renders via LinkedIn's own official embed widget (photo, name, headline, text, reactions) — no scraping, no manual field entry.
+- Posts show in a 3-column masonry grid per board, with infinite scroll.
