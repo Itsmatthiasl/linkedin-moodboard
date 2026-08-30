@@ -2,50 +2,50 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { completePasswordReset, type RecoverySession } from "@/app/actions/auth";
 import { AuthCard } from "@/components/AuthCard";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
   const [error, setError] = useState<string>();
   const [pending, setPending] = useState(false);
-  const [ready, setReady] = useState(false);
+  const [session, setSession] = useState<RecoverySession | null>(null);
+  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    const supabase = createClient();
+    // Supabase's recovery link redirects here with the session in the URL
+    // fragment. We read it directly rather than through supabase-js's
+    // client-side session detection, which still makes a network call
+    // through the same request path that's been unreliable for some users.
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    const accessToken = hash.get("access_token");
+    const refreshToken = hash.get("refresh_token");
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setReady(true);
-    });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
-        setReady(true);
-      }
-    });
-
-    return () => listener.subscription.unsubscribe();
+    if (accessToken && refreshToken) {
+      setSession({ access_token: accessToken, refresh_token: refreshToken });
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+    setChecked(true);
   }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(undefined);
 
-    const formData = new FormData(e.currentTarget);
-    const password = String(formData.get("password") ?? "");
-
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+    if (!session) {
+      setError("This reset link has expired. Request a new one from the login page.");
       return;
     }
 
+    const formData = new FormData(e.currentTarget);
+    const password = String(formData.get("password") ?? "");
+
     setPending(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.updateUser({ password });
+    const result = await completePasswordReset(session, password);
     setPending(false);
 
-    if (error) {
-      setError(error.message);
+    if (result.error) {
+      setError(result.error);
       return;
     }
 
@@ -53,12 +53,13 @@ export default function ResetPasswordPage() {
     router.refresh();
   }
 
-  if (!ready) {
+  if (!checked) return null;
+
+  if (!session) {
     return (
-      <AuthCard title="Verifying link…" subtitle="One moment.">
+      <AuthCard title="Link expired" subtitle="This reset link is no longer valid.">
         <p className="text-sm text-neutral-500">
-          If nothing happens, the reset link may have expired — request a new
-          one from the login page.
+          Request a new one from the login page.
         </p>
       </AuthCard>
     );
